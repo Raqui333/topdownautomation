@@ -1,0 +1,34 @@
+[
+  {
+	"nome": "nome do arquivo",
+    "unidadeOrcamentaria": 999,
+	"codOrgao": "99",
+	"codUnidade": "999",
+	"data": "01/04/2099",
+    "licitacao": {
+      "numero": 99,
+      "ano": 2099
+    },
+    "objeto": "OBJETO DO PROCESSO",
+    "justificativa": "JUSTIFICATIVA/OBSERVAÇÃO DO PROCESSO",
+    "itens": [
+      {
+        "codigo": "9999999",
+        "quantidade": 99
+      }
+    ],
+	"empenho": {
+	  "acao": 2099,
+	  "naturezaDespesa": "3.3.90.39",
+	  "fonteRecurso": 15000000,
+	  "subElemento": "099",
+	  "naturezaRendimento": 17022,
+	  "ordemCronologica": {
+		  "desobrigado": true,
+		  "justificativa": 3
+	  },
+	  "especie": 1,
+	  "categoria": 3
+	}
+  }
+ ]
