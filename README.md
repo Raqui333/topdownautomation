@@ -5,3 +5,4 @@ Automação através da biblioteca Puppeteer do nodejs para o Sistema Orçamenta
 * nodejs 20.13.1 >
 * dotenv 16.4.5 >
 * puppeteer 22.8.1 >
+* axios 1.7.2 >
