@@ -228,7 +228,7 @@ async function pdfWindowHandler(browser, fileName) {
     console.log('Iniciando processo \'' + info[i].nome + '\'');
     
     const oc_valor = await funcOrdemCS(page, info[i]);
-    const [oc_numero, oc_ano, oc_url] = await pdfWindowHandler(browser, info[i].nome + 'Ordem');
+    const [oc_numero, oc_ano] = await pdfWindowHandler(browser, info[i].nome + 'Ordem');
     
     console.log('Ordem: ' + oc_numero + '/' + oc_ano + ' finalizada!');
 
@@ -244,7 +244,7 @@ async function pdfWindowHandler(browser, fileName) {
     }
 
     await funcEmpenho(page, info[i]);
-    const [emp_ano, emp_numero, emp_url] = await pdfWindowHandler(browser, info[i].nome + 'Empenho');
+    const [emp_ano, emp_numero] = await pdfWindowHandler(browser, info[i].nome + 'Empenho');
     
     console.log('Empenho: ' + emp_numero + '/' + emp_ano + ' finalizado!');
 
