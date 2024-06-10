@@ -1,18 +1,34 @@
 const puppeteer = require('puppeteer');
 const dotenv = require('dotenv').config();
+const axios = require('axios');
 const fs = require('fs');
 
 const INDEX = process.env.MYADDR;
 
-/*
-async downloadFromURL() {
-	// TODO
+async function downloadFromURL(url, fileName, cookies) {
+  console.log('Iniciando download de \'' + fileName + '\'');
+
+  const response = await axios({
+    url,
+    method: 'GET',
+    responseType: 'stream',
+    headers: {
+      'Cookie': cookies.map(obj => obj.name + '=' + obj.value).join(';')
+    }
+  });
+
+  const write = fs.createWriteStream(fileName);
+  response.data.pipe(write);
+
+  return new Promise((resolve, reject) => {
+    write.on('finish', resolve);
+    write.on('error', reject);
+  });
 }
-*/
 
 async function funcOrdemCS(page, info) {
-  await page.goto(INDEX + '/mudarunidorc.aspx?idUnidadeOrcamentaria=' +
-    info.unidadeOrcamentaria);
+  await page.goto(INDEX + '/mudarunidorc.aspx?idUnidadeOrcamentaria='
+     + info.unidadeOrcamentaria);
 
   await page.goto(INDEX + "/ordemcs.aspx");
 
@@ -89,8 +105,8 @@ async function funcOrdemCS(page, info) {
 }
 
 async function funcEmpenho(page, info) {
-  await page.goto(INDEX + '/mudarunidorc.aspx?idUnidadeOrcamentaria=' +
-    info.unidadeOrcamentaria);
+  await page.goto(INDEX + '/mudarunidorc.aspx?idUnidadeOrcamentaria='
+     + info.unidadeOrcamentaria);
 
   await page.goto(INDEX + "/notaempenho.aspx");
 
@@ -104,13 +120,11 @@ async function funcEmpenho(page, info) {
   await page.waitForNavigation();
 
   await page.$eval("#txtCodAcao", (el, acao) => el.value = acao, info.empenho.acao);
-  await page.$eval("#txtCodNatDespesa", (el, natureza) => el.value = natureza, info.empenho
-  .naturezaDespesa);
+  await page.$eval("#txtCodNatDespesa", (el, natureza) => el.value = natureza, info.empenho.naturezaDespesa);
   await page.$eval("#txtCodFonteRecurso", (el, fonte) => el.value = fonte, info.empenho.fonteRecurso);
   await page.$eval("#txtCodSubelemento", (el, subEL) => el.value = subEL, info.empenho.subElemento);
   await page.$eval("#txtValorEmpenho", (el, valor) => el.value = valor, info.valor);
-  await page.$eval("#txtJustificativa", (el, justificativa) => el.value = justificativa, info
-  .justificativa);
+  await page.$eval("#txtJustificativa", (el, justificativa) => el.value = justificativa, info.justificativa);
 
   await page.$eval("#txtCodRegiao", el => el.value = "0001");
   await page.$eval("#ddlEspecie", (el, especie) => {
@@ -151,9 +165,14 @@ async function funcEmpenho(page, info) {
   await page.click('#btnGravar');
 }
 
-async function pdfWindowHandler(browser) {
+async function pdfWindowHandler(browser, fileName) {
   const target = await browser.waitForTarget(win => win.url().includes('/report.aspx'));
   const page = await target.page();
+
+  if (fileName != null)
+    await downloadFromURL(page.url(), fileName + Date.now() + '.pdf', await page.cookies()).then(() => {
+      console.log('Download finalizado!');
+    });
 
   // if url is from ordemcs.aspx pdf return ordemcs 'numero' and 'ano'
   // this mean to be used with notaempenho.aspx
@@ -171,8 +190,8 @@ async function pdfWindowHandler(browser) {
 }
 
 // main function here
-(async () => {
-  const browser = await puppeteer.launch( /*{headless: false}*/ );
+(async() => {
+  const browser = await puppeteer.launch(/*{headless: false}*/);
   const page = await browser.newPage();
   await page.goto(INDEX + '/logon.aspx');
 
@@ -181,7 +200,7 @@ async function pdfWindowHandler(browser) {
   await page.type('#txtSenha', process.env.MYPASS);
   await page.$eval('#btnEntrar', el => el.click());
   await page.waitForNavigation();
-  console.log("logged!");
+  console.log("Logado com sucesso!");
 
   const pages = await browser.pages();
   for (const popup of pages) {
@@ -194,28 +213,29 @@ async function pdfWindowHandler(browser) {
   await page.on('dialog', async dialog => {
     const message = await dialog.message();
     switch (true) {
-      case message.includes('Valor do Empenho maior que saldo orcamentário'):
-        throw new Error(dialog.message());
-        break;
-      default:
-        await dialog.accept();
+    case message.includes('Valor do Empenho maior que saldo orcamentário'):
+      throw new Error(dialog.message());
+      break;
+    default:
+      await dialog.accept();
     }
   });
 
   // steps to make the process
   var info = await JSON.parse(fs.readFileSync('test.json'));
-  for (let i = 0; i < info.length; ++i) {
+  for (var i = 0; i < info.length; ++i) {
     // example
+    console.log('Iniciando processo \'' + info[i].nome + '\'');
+    
     const oc_valor = await funcOrdemCS(page, info[i]);
-    const [oc_numero, oc_ano] = await pdfWindowHandler(browser);
+    const [oc_numero, oc_ano, oc_url] = await pdfWindowHandler(browser, info[i].nome + 'Ordem');
+    
+    console.log('Ordem: ' + oc_numero + '/' + oc_ano + ' finalizada!');
 
     if (oc_valor != null && oc_numero != null && oc_ano != null) {
       info[i] = {
         ...info[i],
-        "valor": oc_valor
-      };
-      info[i] = {
-        ...info[i],
+        "valor": oc_valor,
         "ordem": {
           "numero": oc_numero,
           "ano": oc_ano
@@ -224,12 +244,11 @@ async function pdfWindowHandler(browser) {
     }
 
     await funcEmpenho(page, info[i]);
-    const [emp_ano, emp_numero] = await pdfWindowHandler(browser);
+    const [emp_ano, emp_numero, emp_url] = await pdfWindowHandler(browser, info[i].nome + 'Empenho');
+    
+    console.log('Empenho: ' + emp_numero + '/' + emp_ano + ' finalizado!');
 
-    console.log('Ordem: ' + oc_numero + '/' + oc_ano + ' finished!');
-    console.log('Empenho: ' + emp_numero + '/' + emp_ano + ' finished!');
-
-    console.log('finished [' + (i + 1) + '] of ' + info.length);
+    console.log('Finalizado [' + (i + 1) + '] de ' + info.length + ' processos.');
   }
 
   await browser.close();
