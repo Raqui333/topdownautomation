@@ -97,4 +97,21 @@ async function downloadFromURL(url, fileName, cookies) {
   });
 }
 
-module.exports = { downloadFromURL, change_sector };
+// Essa função corrige o bug onde em algumas RUNs o programa iniciasse
+// a etapa de criação de processos com os popups ainda abertos
+async function waitFourOrMoreWindows(browser, timeout = 10000) {
+  const start_time = Date.now();
+
+  while (Date.now() - start_time < timeout) {
+    const pages = await browser.pages();
+
+    if (pages.length >= 4) return pages;
+
+    // Aguardar um intervalo antes de checar novamente
+    await new Promise((res) => setTimeout(res, 1000));
+  }
+
+  throw Error('ERROR: waitFourOrMoreWindows exceeded ' + timeout + ' ms');
+}
+
+module.exports = { downloadFromURL, change_sector, waitFourOrMoreWindows };

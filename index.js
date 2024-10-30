@@ -8,7 +8,11 @@ global.INDEX = process.env.MYADDR;
 
 // main function
 (async () => {
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({
+    headless: false,
+    defaultViewport: null,
+  });
+
   const page = await browser.newPage();
 
   await page.goto(INDEX + '/logon.aspx');
@@ -22,8 +26,10 @@ global.INDEX = process.env.MYADDR;
 
   console.log('Logado com sucesso!');
 
+  // Espera até que tenha 4 abas ou mais antes de continuar
+  const pages = await utils.waitFourOrMoreWindows(browser);
+
   // Fechar os pop-ups que abrem logo após o login
-  const pages = await browser.pages();
   pages.forEach(async (page) => {
     if (!page.url().includes('/painel.aspx')) await page.close();
   });
@@ -41,8 +47,8 @@ global.INDEX = process.env.MYADDR;
   });
 
   // Etapas do processo EXEMPLO
-  await utils.change_sector(page, 6);
-  await solicitacao.copy_solicitacao(page, 335);
+  //await utils.change_sector(page, 6);
+  //await solicitacao.copy_solicitacao(page, 335);
 
   //await browser.close();
 })();
