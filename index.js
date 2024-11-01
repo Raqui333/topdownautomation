@@ -47,8 +47,8 @@ global.INDEX = process.env.MYADDR;
   });
 
   // Etapas do processo EXEMPLO
-  //await utils.change_sector(page, 6);
-  //await solicitacao.copy_solicitacao(page, 335);
+  await utils.mudar_setor(page, 7);
+  await solicitacao.copiar_solicitacao(page, 257);
 
   //await browser.close();
 })();

@@ -1,7 +1,7 @@
 const axios = require('axios');
 const fs = require('fs');
 
-async function change_sector(page, sector) {
+async function mudar_setor(page, sector) {
   const SETORES = {
     GAB_CIV: 1,
     SEC_ADM: 2,
@@ -114,4 +114,4 @@ async function waitFourOrMoreWindows(browser, timeout = 10000) {
   throw Error('ERROR: waitFourOrMoreWindows exceeded ' + timeout + ' ms');
 }
 
-module.exports = { downloadFromURL, change_sector, waitFourOrMoreWindows };
+module.exports = { downloadFromURL, mudar_setor, waitFourOrMoreWindows };

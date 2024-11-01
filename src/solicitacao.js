@@ -4,13 +4,17 @@ async function licitada(page, number, year) {
   if (typeof number !== 'number' || typeof year !== 'number')
     throw new TypeError('FUNCTION LICITADA: TYPE ERROR');
 
+  await page.waitForSelector('#tabLicitacao');
   await page.$eval('#tabLicitacao', (tabLicitacao) => {
     tabLicitacao.querySelectorAll('td')[2].querySelector('a').click();
   });
 
   await page.waitForNavigation();
 
+  await page.waitForSelector('#txtLicitacao');
   await page.type('#txtLicitacao', String(number));
+
+  await page.waitForSelector('#txtLicitacaoExercicio');
   await page.type('#txtLicitacaoExercicio', String(year));
 
   await page.evaluate(() => {
@@ -20,67 +24,87 @@ async function licitada(page, number, year) {
   await page.waitForNavigation();
 }
 
-async function add_item(page, id, quantity) {
-  if (typeof id !== 'number' || typeof quantity !== 'number')
+async function adicionar_item(page, id, amount) {
+  if (typeof id !== 'number' || typeof amount !== 'number')
     throw new TypeError('FUNCTION ADD_ITEM: TYPE ERROR');
 
-  const result = await page.evaluate((item_id) => {
+  // Percorre a lista de itens e compara a descrição contém o valor do id
+  await page.waitForSelector('#dgLicitacaoItens');
+  const click_edit_result = await page.evaluate((item_id) => {
     const items = document.querySelectorAll('.GridItem, .GridAltItem');
 
     for (const item of items) {
       const item_desc = item.querySelector('span').innerText;
-      if (item_desc.includes(item_id)) var item_has_stock = item;
-    }
 
-    if (item_has_stock) {
-      item_has_stock.querySelector('input').click();
-      return 0;
+      // Caso a descrição contenha o id então clique no botão de editar (add) item
+      if (item_desc.includes(item_id)) {
+        item.querySelector('input').click();
+        return 0;
+      }
     }
 
     return -1;
   }, id);
 
-  if (result < 0) {
-    console.log('WARNING: ' + id + ' out of stock');
+  if (click_edit_result < 0) {
+    console.log('WARNING: Item de id: ' + id + ' sem saldo');
     return -1;
   }
+  console.log('clicou edit');
 
-  await page.waitForNavigation();
+  await page.waitForNavigation({ waitUntil: 'networkidle2' });
 
-  const stock = await page.evaluate(() => {
-    return Number(
-      $('#dgLicitacaoItens__ctl1_txtSaldo').val().replace(',', '.')
-    );
-  });
+  await page.waitForSelector('#dgLicitacaoItens__ctl1_txtSaldo');
+  const stock = await page.evaluate(() =>
+    Number($('#dgLicitacaoItens__ctl1_txtSaldo').val().replace(',', '.'))
+  );
 
-  if (quantity > stock) {
-    quantity = stock;
-    console.log('WARNING: ' + id + ' set to stock value');
+  if (amount > stock) {
+    amount = stock;
+    console.log('WARNING: Item de id: ' + id + ' ajustado para saldo restante');
   }
 
-  await page.type('#dgLicitacaoItens__ctl1_txtQuantidade', String(quantity));
+  console.log('setou stock');
+  // Após o item estar pronto para ser editado, configura o campo "Qtd." para o valor desejado
+  await page.waitForSelector('#dgLicitacaoItens__ctl1_txtQuantidade');
+  await page.type('#dgLicitacaoItens__ctl1_txtQuantidade', String(amount));
+  console.log('setou qtd');
+
+  await page.waitForSelector('#dgLicitacaoItens__ctl1_imgLancar');
   await page.click('#dgLicitacaoItens__ctl1_imgLancar');
+  console.log('clicou gravar');
 
   await page.waitForNavigation();
+
+  console.log('finalizou id ' + id);
 }
 
-async function solicitacao(page, info) {
+// Essa função é responsável pela configuração do ambiente de "Solicitação"
+// TODO: implementar novos tipos de licitação além do 'licitada'
+async function criar_solicitacao(page, info) {
   await page.goto(INDEX + '/licitacaosolicitacao.aspx');
 
-  // Se o tipo da licitação for 'licitada'
+  // Se o tipo da licitação for "Licitada"
+  // isso pode se tornar um if futuramente caso haja mais tipos de licitação implementados
   await licitada(page, info.licitacao.numero, info.licitacao.ano);
 
-  for (const item of info.itens) await add_item(page, item.id, item.qtd);
+  for (const item of info.itens) await adicionar_item(page, item.id, item.qtd);
 }
 
-async function copy_solicitacao(page, sol_num) {
+async function copiar_solicitacao(page, sol_num) {
   await page.goto(INDEX + '/licitacaosolicitacao.aspx');
 
+  await page.waitForSelector('#txtNumero');
   await page.type('#txtNumero', String(sol_num));
+
+  await page.waitForSelector('#btnBuscar');
   await page.click('#btnBuscar');
 
-  await page.waitForNavigation();
+  await page.waitForNavigation({ waitUntil: 'networkidle0' });
 
+  // Ler todos os itens com 'font-weight: bold' de uma solicitação existente e
+  // extrai a quantidade e o id para um array de object a ser retornado
+  await page.waitForSelector('#dgLicitacaoItens');
   const info = await page.evaluate(() => {
     let licitacao_num = Number(document.getElementById('txtLicitacao').value);
     let licitacao_ano = Number(
@@ -116,7 +140,11 @@ async function copy_solicitacao(page, sol_num) {
     };
   });
 
-  await solicitacao(page, info);
+  // chama a função solicitacao para criar um copia da solicitacao atual
+  console.log(info.itens.length);
+  await criar_solicitacao(page, info);
 }
 
-module.exports = { solicitacao, copy_solicitacao };
+// ainda não decidi se o nome das funções serão em ingles ou em português
+
+module.exports = { criar_solicitacao, copiar_solicitacao };
